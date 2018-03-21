@@ -1,0 +1,9 @@
+[package]
+name = "vt6shell"
+version = "0.1.0"
+authors = ["hkgit03 <22918836+hkgit03@users.noreply.github.com>"]
+
+[dependencies]
+vt6 = { path = "../vt6.rs" }
+conch-parser = "0.1.0"
+log = { version = "^0.4", features = [ "max_level_trace", "release_max_level_info" ] }
