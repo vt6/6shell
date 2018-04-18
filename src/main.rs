@@ -28,8 +28,8 @@ use std::io;
 use std::fs::File;
 use std::env;
 
-fn execute_cmd(ast: TopLevelCommand<String>) {
-    println!("Executing command {:?}", ast);
+fn execute_cmd(cmd: TopLevelCommand<String>) {
+    println!("Executing command {:?}", cmd);
 }
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
@@ -48,8 +48,11 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
         let parser = DefaultParser::new(lex);
 
         // run
-        for ast in parser {
-            execute_cmd(ast.expect("Parser error"));
+        for parsed_line in parser {
+            match parsed_line {
+                Ok(cmd) => execute_cmd(cmd),
+                Err(cmd) => panic!("Parser error: {}", cmd),
+            };
         }
     }
 }
