@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * Copyright 2018 hkgit03 <22918836+hkgit03@users.noreply.github.com>
+ * Copyright 2018 lærling <laerling@posteo.de>
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -28,32 +28,20 @@ use std::io;
 use std::fs::File;
 use std::env;
 
-fn main() {
-    simple_logger::init().unwrap();
-
-    let result = match env::args().nth(1) {
-        None => {
-            let stdin = io::stdin();
-            let mut input = stdin.lock();
-            repl(&mut input)
-        },
-        Some(filename) => match File::open(&filename) {
-            Ok(file) => repl(&mut io::BufReader::new(file)),
-            Err(_) => { error!("Cannot read file {}", filename); return; },
-        }
-    };
-
-    if let Err(err) = result {
-        error!("{}", err);
-    }
+fn execute_cmd(ast: TopLevelCommand<String>) {
+    println!("Executing command {:?}", ast);
 }
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
-    // TODO: Stop loop when no more lines
     loop {
         // read from file or stdin
         let mut line = String::new();
         script.read_line(& mut line)?;
+
+        // Stop loop when no more lines in file
+        if line.len() == 0 {
+            return Ok(());
+        }
 
         // lex, parse
         let lex = Lexer::new(line.chars());
@@ -66,6 +54,25 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
     }
 }
 
-fn execute_cmd(ast: TopLevelCommand<String>) {
-    println!("Executing command {:?}", ast);
+fn main() {
+    simple_logger::init().unwrap();
+
+    // evaluate command line argument
+    let eval_result = match env::args().nth(1) {
+        // no argument given, run repl
+        None => {
+            let stdin = io::stdin();
+            let mut input = stdin.lock();
+            repl(&mut input)
+        },
+        // argument given, open file and read commands
+        Some(filename) => match File::open(&filename) {
+            Ok(file) => repl(&mut io::BufReader::new(file)),
+            Err(_) => { error!("Cannot read file {}", filename); return; },
+        }
+    };
+
+    if let Err(err) = eval_result {
+        error!("{}", err);
+    }
 }
