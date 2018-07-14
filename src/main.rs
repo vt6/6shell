@@ -17,16 +17,19 @@
  *******************************************************************************/
 
 extern crate conch_parser;
+/*
 #[macro_use]
 extern crate log;
 extern crate simple_logger;
+*/
 
 use conch_parser::ast::TopLevelCommand;
 use conch_parser::lexer::Lexer;
 use conch_parser::parse::DefaultParser;
-use std::io;
-use std::fs::File;
 use std::env;
+use std::fs::File;
+use std::io;
+use tokio_core::reactor::Core;
 
 fn execute_cmd(cmd: TopLevelCommand<String>) {
     println!("Executing command {:?}", cmd);
@@ -47,6 +50,10 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
         let lex = Lexer::new(line.chars());
         let parser = DefaultParser::new(lex);
 
+        // make event loop
+        Core::new().expect("failed to create event loop");
+        // TODO do something with it
+
         // run
         for parsed_line in parser {
             match parsed_line {
@@ -58,16 +65,18 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 }
 
 fn main() {
-    simple_logger::init().unwrap();
+    //simple_logger::init().unwrap();
 
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {
+
         // no argument given, run repl
         None => {
             let stdin = io::stdin();
             let mut input = stdin.lock();
             repl(&mut input)
         },
+
         // argument given, open file and read commands
         Some(filename) => match File::open(&filename) {
             Ok(file) => repl(&mut io::BufReader::new(file)),
@@ -75,6 +84,7 @@ fn main() {
         }
     };
 
+    // fail if evaluation failed
     if let Err(err) = eval_result {
         error!("{}", err);
     }
