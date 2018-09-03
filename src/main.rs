@@ -16,24 +16,21 @@
  *
  *******************************************************************************/
 
-extern crate conch_parser;
-/*
 #[macro_use]
 extern crate log;
-extern crate simple_logger;
-*/
+extern crate conch_parser;
+extern crate conch_runtime;
+extern crate tokio_core;
 
-use conch_parser::ast::TopLevelCommand;
 use conch_parser::lexer::Lexer;
 use conch_parser::parse::DefaultParser;
+use conch_runtime::spawn::sequence;
 use std::env;
 use std::fs::File;
 use std::io;
 use tokio_core::reactor::Core;
-
-fn execute_cmd(cmd: TopLevelCommand<String>) {
-    println!("Executing command {:?}", cmd);
-}
+use conch_runtime::env::DefaultEnv;
+use conch_runtime::future::EnvFuture;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
     loop {
@@ -42,6 +39,7 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
         script.read_line(& mut line)?;
 
         // Stop loop when no more lines in file
+        // FIXME: Checking on length is clumsy
         if line.len() == 0 {
             return Ok(());
         }
@@ -51,22 +49,24 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
         let parser = DefaultParser::new(lex);
 
         // make event loop
-        Core::new().expect("failed to create event loop");
-        // TODO do something with it
+        let mut lp = Core::new().expect("failed to create event loop");
+        let env = DefaultEnv::new(lp.remote(), None).expect("failed to create default environment");
+
+        let input_sequence = sequence(
+            parser.into_iter().map(|parsed_line| {
+            match parsed_line {
+                Ok(cmd) => cmd,
+                Err(cmd) => panic!("Parser error: {}", cmd),
+            }
+        }));
 
         // run
-        for parsed_line in parser {
-            match parsed_line {
-                Ok(cmd) => execute_cmd(cmd),
-                Err(cmd) => panic!("Parser error: {}", cmd),
-            };
-        }
+        let _result = lp.run(input_sequence.pin_env(env));
+
     }
 }
 
 fn main() {
-    //simple_logger::init().unwrap();
-
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {
 
