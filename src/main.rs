@@ -16,21 +16,22 @@
  *
  *******************************************************************************/
 
-#[macro_use]
-extern crate log;
 extern crate conch_parser;
 extern crate conch_runtime;
+#[macro_use]
+extern crate log;
 extern crate tokio_core;
 
 use conch_parser::lexer::Lexer;
 use conch_parser::parse::DefaultParser;
+use conch_runtime::env::DefaultEnv;
+use conch_runtime::future::EnvFuture;
 use conch_runtime::spawn::sequence;
 use std::env;
 use std::fs::File;
 use std::io;
+use std::option::Option;
 use tokio_core::reactor::Core;
-use conch_runtime::env::DefaultEnv;
-use conch_runtime::future::EnvFuture;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
     loop {
@@ -52,17 +53,21 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
         let mut lp = Core::new().expect("failed to create event loop");
         let env = DefaultEnv::new(lp.remote(), None).expect("failed to create default environment");
 
-        let input_sequence = sequence(
-            parser.into_iter().map(|parsed_line| {
-            match parsed_line {
-                Ok(cmd) => cmd,
-                Err(cmd) => panic!("Parser error: {}", cmd),
-            }
-        }));
+        // check that commands could be parsed
+        let input: Option<Vec<_>> =
+            match parser.into_iter().collect() {
+                Ok(cmd) => Some(cmd),
+                Err(_) => None
+            };
 
-        // run
-        let _result = lp.run(input_sequence.pin_env(env));
-
+        // run parsed commands
+        let _result = match input {
+            Some(x) => Some(lp.run(sequence(x).pin_env(env))),
+            None => {
+                eprintln!("Syntax error");
+                None
+            },
+        };
     }
 }
 
