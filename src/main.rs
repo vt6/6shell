@@ -34,7 +34,14 @@ use std::option::Option;
 use tokio_core::reactor::Core;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
+
+    // make event loop
+    let mut lp = Core::new()
+        .expect("failed to create event loop");
+
+    // main repl
     loop {
+
         // read from file or stdin
         let mut line = String::new();
         script.read_line(& mut line)?;
@@ -45,13 +52,9 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
             return Ok(());
         }
 
-        // lex, parse
+        // lex and parse
         let lex = Lexer::new(line.chars());
         let parser = DefaultParser::new(lex);
-
-        // make event loop
-        let mut lp = Core::new().expect("failed to create event loop");
-        let env = DefaultEnv::new(lp.remote(), None).expect("failed to create default environment");
 
         // check that commands could be parsed
         let input: Option<Vec<_>> =
@@ -59,6 +62,10 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
                 Ok(cmd) => Some(cmd),
                 Err(_) => None
             };
+
+        // create environment
+        let env = DefaultEnv::new(lp.remote(), None)
+            .expect("failed to create default environment");
 
         // run parsed commands
         let _result = match input {
@@ -72,6 +79,7 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 }
 
 fn main() {
+
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {
 
