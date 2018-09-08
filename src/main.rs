@@ -18,8 +18,6 @@
 
 extern crate conch_parser;
 extern crate conch_runtime;
-#[macro_use]
-extern crate log;
 extern crate tokio_core;
 
 use conch_parser::lexer::Lexer;
@@ -57,10 +55,13 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
         let parser = DefaultParser::new(lex);
 
         // check that commands could be parsed
-        let input: Option<Vec<_>> =
-            match parser.into_iter().collect() {
+        let input: Option<Vec<_>> = match
+            parser.into_iter().collect() {
                 Ok(cmd) => Some(cmd),
-                Err(_) => None
+                Err(e) => {
+                    eprintln!("Parser error: {}", e);
+                    continue
+                }
             };
 
         // create environment
@@ -68,12 +69,9 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
             .expect("failed to create default environment");
 
         // run parsed commands
-        let _result = match input {
+        match input {
             Some(x) => Some(lp.run(sequence(x).pin_env(env))),
-            None => {
-                eprintln!("Syntax error");
-                None
-            },
+            None => None,
         };
     }
 }
@@ -93,12 +91,15 @@ fn main() {
         // argument given, open file and read commands
         Some(filename) => match File::open(&filename) {
             Ok(file) => repl(&mut io::BufReader::new(file)),
-            Err(_) => { error!("Cannot read file {}", filename); return; },
+            Err(_) => {
+                eprintln!("Cannot read file {}", filename);
+                return;
+            },
         }
     };
 
     // fail if evaluation failed
     if let Err(err) = eval_result {
-        error!("{}", err);
+        eprintln!("{}", err);
     }
 }
