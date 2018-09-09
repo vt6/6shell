@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["lærling <laerling@posteo.de>"]
 
 [dependencies]
-conch-parser = "*"
-conch-runtime = "*"
-log = { version = "*", features = [ "max_level_trace", "release_max_level_info" ] }
-simple_logger = "*"
-tokio-core = "*"
+conch-parser = "^0.1.0"
+conch-runtime = "^0.1.4"
+tokio-core = "^0.1.17"

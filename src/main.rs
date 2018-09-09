@@ -17,65 +17,91 @@
  *******************************************************************************/
 
 extern crate conch_parser;
-#[macro_use]
-extern crate log;
-extern crate simple_logger;
+extern crate conch_runtime;
+extern crate tokio_core;
 
-use conch_parser::ast::TopLevelCommand;
 use conch_parser::lexer::Lexer;
 use conch_parser::parse::DefaultParser;
-use std::io;
-use std::fs::File;
+use conch_runtime::env::DefaultEnv;
+use conch_runtime::future::EnvFuture;
+use conch_runtime::spawn::sequence;
 use std::env;
-
-fn execute_cmd(cmd: TopLevelCommand<String>) {
-    println!("Executing command {:?}", cmd);
-}
+use std::fs::File;
+use std::io;
+use std::option::Option;
+use tokio_core::reactor::Core;
+use std::process::exit;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
+
+    // make event loop
+    let mut lp = Core::new()
+        .expect("failed to create event loop");
+
+    // main repl
     loop {
+
         // read from file or stdin
         let mut line = String::new();
         script.read_line(& mut line)?;
 
         // Stop loop when no more lines in file
+        // FIXME: Checking on length is clumsy
         if line.len() == 0 {
             return Ok(());
         }
 
-        // lex, parse
+        // lex and parse
         let lex = Lexer::new(line.chars());
         let parser = DefaultParser::new(lex);
 
-        // run
-        for parsed_line in parser {
-            match parsed_line {
-                Ok(cmd) => execute_cmd(cmd),
-                Err(cmd) => panic!("Parser error: {}", cmd),
+        // check that commands could be parsed
+        let input: Option<Vec<_>> = match
+            parser.into_iter().collect() {
+                Ok(cmd) => Some(cmd),
+                Err(e) => {
+                    eprintln!("Parser error: {}", e);
+                    continue
+                }
             };
-        }
+
+        // create environment
+        let env = DefaultEnv::new(lp.remote(), None)
+            .expect("failed to create default environment");
+
+        // run parsed commands
+        match input {
+            Some(x) => Some(lp.run(sequence(x).pin_env(env))),
+            None => None,
+        };
     }
 }
 
 fn main() {
-    simple_logger::init().unwrap();
 
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {
+
         // no argument given, run repl
         None => {
             let stdin = io::stdin();
             let mut input = stdin.lock();
             repl(&mut input)
         },
+
         // argument given, open file and read commands
         Some(filename) => match File::open(&filename) {
             Ok(file) => repl(&mut io::BufReader::new(file)),
-            Err(_) => { error!("Cannot read file {}", filename); return; },
+            Err(_) => {
+                eprintln!("Cannot read file {}", filename);
+                exit(1);
+            },
         }
     };
 
+    // fail if evaluation failed
     if let Err(err) = eval_result {
-        error!("{}", err);
+        eprintln!("{}", err);
+        exit(1);
     }
 }
