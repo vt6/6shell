@@ -30,6 +30,7 @@ use std::fs::File;
 use std::io;
 use std::option::Option;
 use tokio_core::reactor::Core;
+use std::process::exit;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 
@@ -93,7 +94,7 @@ fn main() {
             Ok(file) => repl(&mut io::BufReader::new(file)),
             Err(_) => {
                 eprintln!("Cannot read file {}", filename);
-                return;
+                exit(1);
             },
         }
     };
@@ -101,5 +102,6 @@ fn main() {
     // fail if evaluation failed
     if let Err(err) = eval_result {
         eprintln!("{}", err);
+        exit(1);
     }
 }
