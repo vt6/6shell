@@ -28,14 +28,13 @@ use conch_parser::parse::DefaultParser;
 use conch_runtime::env::DefaultEnv;
 use conch_runtime::future::EnvFuture;
 use conch_runtime::spawn::sequence;
-use std::env::vars;
+use connection::Connection;
 use std::env;
 use std::fs::File;
 use std::io;
 use std::option::Option;
 use std::process::exit;
 use tokio_core::reactor::Core;
-use connection::Connection;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 
@@ -84,10 +83,18 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 
 fn main() {
 
-    // FIXME temp
+    use vt6::core::msg::MessageFormatter;
+    let mut buf = vec![0; 22]; // 22 is the exact length
+    { // lifetime of MessageFormatter
+        let mut mf = MessageFormatter::new(&mut buf, "want", 2);
+        mf.add_argument("core");
+        mf.add_argument(&1);
+        let _length = mf.finalize().unwrap();
+    } // end borrow of buf by MessageFormatter
     let mut con = Connection::new().unwrap();
-    let msg = "{3|4:want,4:core,1:1,}";
-    println!("Received: {}", con.send_and_receive(msg));
+    println!("Received: {}", con.send_and_receive(buf));
+
+    std::process::exit(0);
 
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {

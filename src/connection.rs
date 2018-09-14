@@ -17,12 +17,12 @@
  *******************************************************************************/
 
 use std::env::vars;
-use std::io;
 use std::io::Write;
+use std::io;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::exit;
-use vt6::core::msg::Message;
+use std::vec::Vec;
 
 /// Encapsulates all connections to the VT6 server, that is the I/O stream (most
 /// commonly stdin and stdout) and the VT6 message stream (message input,
@@ -62,16 +62,14 @@ impl Connection {
         exit(1);
     }
 
-    // FIXME: msg: Message instead of &str
-    pub fn send_and_receive(&mut self, msg: &str) -> String {
+    pub fn send_and_receive(&mut self, msg: Vec<u8>) -> String {
 
         // send
         match self.mode {
 
             // in normal mode write to VT6 message stream
             ConnectionMode::Normal(ref mut stream) => {
-                // FIXME
-                stream.write_all(msg.as_bytes()).unwrap();
+                stream.write_all(msg.as_slice()).unwrap();
             },
 
             // in multiplexed mode write to stdout
@@ -80,7 +78,7 @@ impl Connection {
             },
         };
 
-        // read
+        // receive
         match self.mode {
 
             // in normal mode read from VT6 message stream
