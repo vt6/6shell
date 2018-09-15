@@ -86,8 +86,8 @@ fn main() {
 
     // FIXME temp
     let mut con = Connection::new().unwrap();
-    con.send("{3|4:want,4:core,1:1,}");
-    con.read();
+    let msg = "{3|4:want,4:core,1:1,}";
+    println!("Received: {}", con.send_and_receive(msg));
 
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {

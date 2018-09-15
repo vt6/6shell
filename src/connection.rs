@@ -63,7 +63,9 @@ impl Connection {
     }
 
     // FIXME: msg: Message instead of &str
-    pub fn send(&mut self, msg: &str) {
+    pub fn send_and_receive(&mut self, msg: &str) -> String {
+
+        // send
         match self.mode {
 
             // in normal mode write to VT6 message stream
@@ -77,18 +79,16 @@ impl Connection {
                 // TODO
             },
         };
-    }
 
-    // FIXME asynchronous reading
-    pub fn read(&mut self) {
+        // read
         match self.mode {
 
             // in normal mode read from VT6 message stream
             ConnectionMode::Normal(ref mut stream) => {
                 use std::io::Read;
                 let mut answer = String::with_capacity(24);
-                let read_bytes = stream.read_to_string(&mut answer).unwrap();
-                println!("Read {} bytes: {}", read_bytes, answer);
+                let _bytes_read = stream.read_to_string(&mut answer).unwrap();
+                return answer;
             },
 
             // in multiplexed mode read from stdin
