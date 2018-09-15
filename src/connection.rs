@@ -24,11 +24,11 @@ use std::path::PathBuf;
 use std::process::exit;
 use std::vec::Vec;
 
-/// Encapsulates all connections to the VT6 server, that is the I/O stream (most
-/// commonly stdin and stdout) and the VT6 message stream (message input,
-/// message output) and abstracts over the kind of connection (normal mode or
-/// multiplexed mode)
-pub struct Connection {
+/// All input/output that is directed at the terminal has to go via this object.
+/// It abstracts over the kind of connection (normal or multiplexed) and in
+/// multiplexed mode joins message stream and I/O stream appropriately. In
+/// normal mode it just forwards to stdout and the message stream.
+pub struct IO {
     mode: ConnectionMode,
 }
 
@@ -39,8 +39,9 @@ pub enum ConnectionMode {
     Multiplexed,
 }
 
-impl Connection {
+impl IO {
 
+    /// Determines the connection mode and returns a new IO object
     pub fn new() -> Result<Connection, io::Error> {
 
         // use normal mode if VT6 environment variable is present
@@ -62,26 +63,41 @@ impl Connection {
         exit(1);
     }
 
-    pub fn send_and_receive(&mut self, msg: Vec<u8>) -> String {
+    pub fn is_multiplexed(&self) -> bool {
+        self.mode == ConnectionMode::Multiplexed
+    }
 
-        // send
+    /// Print to I/O stream
+    pub fn print(&self, &str) {
+        match self.mode {
+            ConnectionMode::Normal(_) => print!(&str);
+        }
+    }
+
+    /// Print to message stream. For the time being, this is a synchronous
+    /// function, meaning that after sending it waits until a complete answer
+    /// message is received.
+    pub fn send_message(&mut self, msg: Vec<u8>) -> String {
+
+        // send to the server
         match self.mode {
 
-            // in normal mode write to VT6 message stream
+            // in normal mode write to message stream
             ConnectionMode::Normal(ref mut stream) => {
                 stream.write_all(msg.as_slice()).unwrap();
             },
 
-            // in multiplexed mode write to stdout
+            // in multiplexed mode merge in I/O stream
             ConnectionMode::Multiplexed => {
                 // TODO
+                panic!("not yet implemented");
             },
         };
 
-        // receive
+        // receive from the server
         match self.mode {
 
-            // in normal mode read from VT6 message stream
+            // in normal mode read from message stream
             ConnectionMode::Normal(ref mut stream) => {
                 use std::io::Read;
                 let mut answer = String::with_capacity(24);
@@ -89,8 +105,9 @@ impl Connection {
                 return answer;
             },
 
-            // in multiplexed mode read from stdin
+            // in multiplexed mode parse from I/O stream
             ConnectionMode::Multiplexed => {
+                // TODO
                 panic!("not yet implemented");
             }
         };

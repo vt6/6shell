@@ -85,7 +85,7 @@ fn main() {
 
     use vt6::core::msg::MessageFormatter;
     let mut buf = vec![0; 22]; // 22 is the exact length
-    { // lifetime of MessageFormatter
+    {
         let mut mf = MessageFormatter::new(&mut buf, "want", 2);
         mf.add_argument("core");
         mf.add_argument(&1);
