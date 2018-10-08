@@ -19,6 +19,7 @@
 extern crate conch_parser;
 extern crate conch_runtime;
 extern crate tokio_core;
+extern crate vt6;
 
 use conch_parser::lexer::Lexer;
 use conch_parser::parse::DefaultParser;
@@ -31,6 +32,8 @@ use std::io;
 use std::option::Option;
 use tokio_core::reactor::Core;
 use std::process::exit;
+
+mod connection;
 
 fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 
@@ -78,6 +81,12 @@ fn repl<T: io::BufRead>(script: &mut T) -> io::Result<()> {
 }
 
 fn main() {
+
+    // FIXME temp
+    let mut con = connection::Connection::new().unwrap();
+    con.send("{3|4:want,4:core,1:1,}");
+    con.read();
+    std::process::exit(0);
 
     // evaluate command line argument
     let eval_result = match env::args().nth(1) {

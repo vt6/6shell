@@ -5,6 +5,7 @@ dependencies = [
  "conch-parser 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "conch-runtime 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vt6 0.0.1",
 ]
 
 [[package]]
@@ -712,6 +713,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "vt6"
+version = "0.0.1"
 
 [[package]]
 name = "winapi"

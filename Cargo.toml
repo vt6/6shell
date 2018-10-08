@@ -7,3 +7,4 @@ authors = ["lærling <laerling@posteo.de>"]
 conch-parser = "^0.1.0"
 conch-runtime = "^0.1.4"
 tokio-core = "^0.1.17"
+vt6 = { path = "../vt6.rs" }
