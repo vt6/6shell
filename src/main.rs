@@ -84,7 +84,8 @@ fn main() {
 
     // FIXME temp
     let mut con = connection::Connection::new().unwrap();
-    con.send_and_receive("{3|4:want,4:core,1:1,}");
+    println!("{}", con.send_and_receive("{3|4:want,4:core,1:1,}").0);
+    println!("{}", con.send_and_receive("{3|4:want,4:LmAo,1:1,}").0);
     std::process::exit(0);
 
     // evaluate command line argument

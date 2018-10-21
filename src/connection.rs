@@ -24,11 +24,12 @@ use std::path::PathBuf;
 use std::io::Error;
 use std::io::ErrorKind;
 use vt6::common::core::msg::Message;
+use std::io::Read;
 
 /// Encapsulates the server connection
 pub struct Connection {
     stream: UnixStream,
-    buffer: Vec<u8>,
+    buffer: [u8; 1024],
 }
 
 impl Connection {
@@ -37,44 +38,38 @@ impl Connection {
     pub fn new() -> Result<Connection, io::Error> {
 
         if let Some(vt6_socket_var) = vars().find(|var| var.0 == "VT6") {
-            return Ok(Connection {
-                stream: UnixStream::connect(PathBuf::from(vt6_socket_var.1))?,
-                buffer: vec![0;1024],
-            });
+            let con = Connection {
+                stream: match UnixStream::connect(PathBuf::from(&vt6_socket_var.1)) {
+                    Ok(stream) => stream,
+                    Err(e) => { eprintln!("Cannot connect to socket '{}'", vt6_socket_var.1); panic!(e); },
+                },
+                buffer: [0; 1024],
+            };
+            return Ok(con);
         }
 
         Err(Error::new(ErrorKind::NotFound, "VT6 server connection not found."))
     }
 
-    /// sends a message and waits for the response synchronously
-    pub fn send_and_receive(&mut self, msg: &str) {
-
-        // send
-        // TODO: Use vt6 messages
-        self.stream.write_all(msg.as_bytes()).unwrap();
-
-        // receive
-        use std::io::Read;
-        let read_bytes: usize;
-        let read_result: (Message, usize);
+    /// waits for a response (synchronously)
+    pub fn send_and_receive(&mut self, msg: &str) -> (Message, usize) {
         loop {
 
-            // read from stream
-            match self.stream.read(self.buffer) {
-                Ok(amount) => read_bytes = amount,
-                Err(e) => panic!(e),
-            }
+            // send
+            self.stream.write_all(msg.as_bytes()).unwrap(); // TODO: Use vt6 messages
 
-            // try to parse and end reading as soon as parsing successful
+            // read from stream...
+            self.stream.read(&mut self.buffer).ok();
+
+            // ...until there is something that can be parsed
             match Message::parse(&self.buffer) {
-                Ok(result) => {
-                    read_result = result;
-                    break;
-                },
+                // TODO: Why can't we do 'Ok(x) => return x,'???
+                Ok(_) => break, // we cannot return immediately
                 Err(_) => {}, // continue
             }
         }
 
-        println!("Read {} bytes: {:?}", read_bytes, read_result.0);
+        // return
+        Message::parse(&self.buffer).unwrap()
     }
 }
