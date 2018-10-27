@@ -53,10 +53,11 @@ impl Connection {
 
     /// waits for a response (synchronously)
     pub fn send_and_receive(&mut self, msg: &str) -> (Message, usize) {
-        loop {
 
-            // send
-            self.stream.write_all(msg.as_bytes()).unwrap(); // TODO: Use vt6 messages
+        // send
+        self.stream.write_all(msg.as_bytes()).unwrap(); // TODO: Use vt6 messages
+
+        loop {
 
             // read from stream...
             self.stream.read(&mut self.buffer).ok();
