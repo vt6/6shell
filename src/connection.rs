@@ -26,10 +26,12 @@ use std::io::ErrorKind;
 use vt6::common::core::msg::Message;
 use std::io::Read;
 
+const BUF_SIZE: usize = 1024;
+
 /// Encapsulates the server connection
 pub struct Connection {
     stream: UnixStream,
-    buffer: [u8; 1024],
+    buffer: [u8; BUF_SIZE],
 }
 
 impl Connection {
@@ -43,12 +45,12 @@ impl Connection {
                     Ok(stream) => stream,
                     Err(e) => { eprintln!("Cannot connect to socket '{}'", vt6_socket_var.1); panic!(e); },
                 },
-                buffer: [0; 1024],
+                buffer: [0; BUF_SIZE],
             };
             return Ok(con);
         }
 
-        Err(Error::new(ErrorKind::NotFound, "VT6 server connection not found."))
+        Err(Error::new(ErrorKind::NotFound, "VT6 server socket not found."))
     }
 
     /// waits for a response (synchronously)
@@ -57,20 +59,29 @@ impl Connection {
         // send
         self.stream.write_all(msg.as_bytes()).unwrap(); // TODO: Use vt6 messages
 
+        // FIXME: When the server closes the connection amidst sending a message, the loop keeps running
+
+        // read until there is something that can be parsed
+        let mut buffer_offset: usize = 0;
         loop {
 
-            // read from stream...
-            self.stream.read(&mut self.buffer).ok();
+            // read into buffer...
+            let bytes_read = self.stream.read(&mut self.buffer[buffer_offset..]).unwrap();
+
+            // adjust offset for next read
+            buffer_offset += bytes_read;
 
             // ...until there is something that can be parsed
-            match Message::parse(&self.buffer) {
-                // TODO: Why can't we do 'Ok(x) => return x,'???
-                Ok(_) => break, // we cannot return immediately
+            match Message::parse(&self.buffer[..buffer_offset]) {
+                Ok(_) => break,
                 Err(_) => {}, // continue
             }
         }
 
         // return
-        Message::parse(&self.buffer).unwrap()
+        let (msg, consumed) = Message::parse(&self.buffer[..buffer_offset]).unwrap();
+
+        // return
+        (msg, consumed)
     }
 }
