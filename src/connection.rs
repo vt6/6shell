@@ -43,7 +43,10 @@ impl Connection {
             let con = Connection {
                 stream: match UnixStream::connect(PathBuf::from(&vt6_socket_var.1)) {
                     Ok(stream) => stream,
-                    Err(e) => { eprintln!("Cannot connect to socket '{}'", vt6_socket_var.1); panic!(e); },
+                    Err(e) => {
+                        eprintln!("Cannot connect to socket '{}'", vt6_socket_var.1);
+                        panic!(e); // TODO: Only in debug profile, else exit with 1
+                    },
                 },
                 buffer: [0; BUF_SIZE],
             };
@@ -53,20 +56,24 @@ impl Connection {
         Err(Error::new(ErrorKind::NotFound, "VT6 server socket not found."))
     }
 
-    /// waits for a response (synchronously)
+    /// sends a message and waits for the response (synchronously)
     pub fn send_and_receive(&mut self, msg: &str) -> (Message, usize) {
 
         // send
         self.stream.write_all(msg.as_bytes()).unwrap(); // TODO: Use vt6 messages
-
-        // FIXME: When the server closes the connection amidst sending a message, the loop keeps running
 
         // read until there is something that can be parsed
         let mut buffer_offset: usize = 0;
         loop {
 
             // read into buffer...
-            let bytes_read = self.stream.read(&mut self.buffer[buffer_offset..]).unwrap();
+            let bytes_read = match self.stream.read(&mut self.buffer[buffer_offset..]) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("Connection to server socket lost");
+                    panic!(e); // TODO: Only in debug profile, else exit with 1
+                }
+            };
 
             // adjust offset for next read
             buffer_offset += bytes_read;
@@ -78,10 +85,6 @@ impl Connection {
             }
         }
 
-        // return
-        let (msg, consumed) = Message::parse(&self.buffer[..buffer_offset]).unwrap();
-
-        // return
-        (msg, consumed)
+        return Message::parse(&self.buffer[..buffer_offset]).unwrap();
     }
 }
